@@ -1,30 +1,21 @@
--- GitHub Loader Module for Luau/Roblox
--- Author: Replit Agent (Expert in Luau & Roblox Architecture)
+--[[
+    GitHub Loader for Injectors
+    Usage: loadstring(game:HttpGet("https://raw.githubusercontent.com/vchilina27-design/Clicker-Lua/main/loader.lua"))()
+]]
 
 local Loader = {}
 
--- Safely get globals that might be provided by the environment or mocked
-local game = _G.game or game
+-- Roblox globals
 local HttpService = game:GetService("HttpService")
-local warn = _G.warn or warn
-local loadstring = _G.loadstring or loadstring
 
 -- Configuration
 local GITHUB_API_BASE = "https://raw.githubusercontent.com/%s/%s/%s/%s"
 
---[[
-    Loads a module from GitHub.
-    @param user: GitHub username
-    @param repo: GitHub repository name
-    @param branch: Branch name (e.g., "main")
-    @param path: Path to the lua file
-    @return: The result of the loaded module
-]]
 function Loader.load(user, repo, branch, path)
     local url = string.format(GITHUB_API_BASE, user, repo, branch, path)
     
     local success, response = pcall(function()
-        return HttpService:GetAsync(url)
+        return game:HttpGet(url)
     end)
     
     if not success then
@@ -47,4 +38,5 @@ function Loader.load(user, repo, branch, path)
     return result
 end
 
+-- If executed via loadstring, return the module
 return Loader
