@@ -1,5 +1,29 @@
+modules = ["lua-5.2"]
 [agent]
 expertMode = true
 
 [nix]
 channel = "stable-25_05"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Test Loader"
+
+[[workflows.workflow]]
+name = "Test Loader"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "lua test_loader.lua"
+
+[workflows.workflow.metadata]
+outputType = "console"
