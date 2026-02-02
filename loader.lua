@@ -1,39 +1,45 @@
 --[[
-    GitHub Script Loader for Roblox
-    Optimized for personal testing in your own game.
+    GitHub Script Loader for Roblox (Delta/Mobile Optimized)
     Usage: 
-    local Loader = loadstring(game:HttpGet("https://raw.githubusercontent.com/vchilina27-design/Clicker-Lua/main/loader.lua"))()
-    local MyScript = Loader.load("user", "repo", "main", "script.lua")
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/vchilina27-design/Clicker-Lua/main/loader.lua"))()
 ]]
 
 local Loader = {}
 
--- Function to load a script from GitHub
+-- Main load function
 function Loader.load(user, repo, branch, path)
-    local url = string.format("https://raw.githubusercontent.com/%s/%s/%s/%s", user, repo, branch, path)
+    -- Using a direct raw string to avoid any string.format issues on some executors
+    local url = "https://raw.githubusercontent.com/" .. user .. "/" .. repo .. "/" .. branch .. "/" .. path
     
     local success, response = pcall(function()
         return game:HttpGet(url)
     end)
     
     if not success then
-        warn("Loader Error: Could not fetch from GitHub. " .. tostring(response))
+        warn("Delta Loader: Failed to fetch. Check your internet or URL.")
+        print("URL Attempted: " .. url)
         return nil
     end
     
     local func, err = loadstring(response)
     if not func then
-        warn("Loader Error: Syntax error in fetched script. " .. tostring(err))
+        warn("Delta Loader: Script has errors and cannot run.")
+        print("Error: " .. tostring(err))
         return nil
     end
     
     local successExec, result = pcall(func)
     if not successExec then
-        warn("Loader Error: Execution error. " .. tostring(result))
+        warn("Delta Loader: Script crashed during execution.")
+        print("Error: " .. tostring(result))
         return nil
     end
     
     return result
 end
 
+-- Immediately define a global if running via loadstring for easier access in Delta
+_G.GitHubLoader = Loader
+
+print("Delta Loader: System Ready!")
 return Loader
