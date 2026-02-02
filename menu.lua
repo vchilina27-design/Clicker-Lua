@@ -1,8 +1,8 @@
 --[[
-    ✨ ULTIMATE STYLISH UI V6.1 - "NEON GLASS" (WITH FLY)
+    ✨ ULTIMATE STYLISH UI V7 - "NEON GLASS ELITE"
     Language: Luau (Roblox Optimized)
     Design: Glassmorphism, Neon Accents, Ultra-Smooth Transitions
-    Features: Stylish UI + Flight Function (Mobile Support)
+    Features: Stylish UI + Flight + ESP + Remote Spy
 ]]
 
 -- Services (Luau-style)
@@ -11,6 +11,7 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
 
 local lp = Players.LocalPlayer
 
@@ -36,7 +37,9 @@ if targetParent:FindFirstChild("FlyControlsUI") then targetParent.FlyControlsUI:
 local State = {
     Flying = false,
     FlySpeed = 50,
-    CurrentTab = nil
+    EspEnabled = false,
+    RemoteSpyEnabled = false,
+    CurrentTabName = nil
 }
 
 -- UI Construction
@@ -48,8 +51,8 @@ ScreenGui.Parent = targetParent
 -- Main Window
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 500, 0, 350)
-MainFrame.Position = UDim2.new(0.5, -250, 0.5, -175)
+MainFrame.Size = UDim2.new(0, 550, 0, 400)
+MainFrame.Position = UDim2.new(0.5, -275, 0.5, -200)
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
 MainFrame.BackgroundTransparency = 0.3 -- Glass effect
 MainFrame.BorderSizePixel = 0
@@ -78,7 +81,7 @@ Gradient.Parent = MainFrame
 -- Sidebar
 local Sidebar = Instance.new("Frame")
 Sidebar.Name = "Sidebar"
-Sidebar.Size = UDim2.new(0, 150, 1, 0)
+Sidebar.Size = UDim2.new(0, 140, 1, 0)
 Sidebar.BackgroundColor3 = Color3.fromRGB(5, 5, 8)
 Sidebar.BackgroundTransparency = 0.4
 Sidebar.BorderSizePixel = 0
@@ -86,15 +89,15 @@ Sidebar.Parent = MainFrame
 Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 15)
 
 local Layout = Instance.new("UIListLayout", Sidebar)
-Layout.Padding = UDim.new(0, 8)
+Layout.Padding = UDim.new(0, 6)
 Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 Instance.new("UIPadding", Sidebar).PaddingTop = UDim.new(0, 20)
 
 -- Content Area
 local Container = Instance.new("Frame")
 Container.Name = "Container"
-Container.Size = UDim2.new(1, -170, 1, -30)
-Container.Position = UDim2.new(0, 160, 0, 15)
+Container.Size = UDim2.new(1, -160, 1, -30)
+Container.Position = UDim2.new(0, 150, 0, 15)
 Container.BackgroundTransparency = 1
 Container.Parent = MainFrame
 
@@ -119,7 +122,7 @@ local function CreateTab(name: string, icon: string)
     Btn.Text = icon .. "  " .. name
     Btn.Font = Enum.Font.GothamMedium
     Btn.TextColor3 = Color3.fromRGB(180, 180, 180)
-    Btn.TextSize = 14
+    Btn.TextSize = 13
     Btn.Parent = Sidebar
     Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 10)
 
@@ -164,7 +167,7 @@ local function AddLabel(parent, text, color)
     l.Text = text
     l.Font = Enum.Font.GothamBold
     l.TextColor3 = color or Color3.new(1,1,1)
-    l.TextSize = 15
+    l.TextSize = 14
     l.Parent = parent
     return l
 end
@@ -277,27 +280,132 @@ local function ToggleFly()
     end
 end
 
+-- ESP LOGIC
+local function CreateHighlight(player)
+    if player == lp then return end
+    local function apply()
+        if player.Character and not player.Character:FindFirstChild("ESPHighlight") then
+            local highlight = Instance.new("Highlight")
+            highlight.Name = "ESPHighlight"
+            highlight.Adornee = player.Character
+            highlight.FillColor = Color3.fromRGB(0, 255, 255)
+            highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+            highlight.FillTransparency = 0.5
+            highlight.OutlineTransparency = 0
+            highlight.Enabled = State.EspEnabled
+            highlight.Parent = player.Character
+        end
+    end
+    player.CharacterAdded:Connect(apply)
+    if player.Character then apply() end
+end
+
+local function UpdateESP()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Character and player.Character:FindFirstChild("ESPHighlight") then
+            player.Character.ESPHighlight.Enabled = State.EspEnabled
+        end
+    end
+end
+
+for _, player in pairs(Players:GetPlayers()) do
+    CreateHighlight(player)
+end
+Players.PlayerAdded:Connect(CreateHighlight)
+
+-- REMOTE SPY LOGIC
+local SpyLogFrame = Instance.new("ScrollingFrame")
+local SpyLogLayout = Instance.new("UIListLayout", SpyLogFrame)
+SpyLogLayout.Padding = UDim.new(0, 5)
+
+local function LogRemote(name, args)
+    if not State.RemoteSpyEnabled then return end
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -10, 0, 25)
+    label.BackgroundTransparency = 0.8
+    label.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    label.TextColor3 = Color3.fromRGB(200, 200, 200)
+    label.Text = string.format("[%s] %s: %s", os.date("%X"), name, HttpService:JSONEncode(args))
+    label.Font = Enum.Font.Code
+    label.TextSize = 12
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = SpyLogFrame
+
+    Instance.new("UICorner", label).CornerRadius = UDim.new(0, 4)
+
+    SpyLogFrame.CanvasSize = UDim2.new(0, 0, 0, SpyLogLayout.AbsoluteContentSize.Y)
+    if SpyLogFrame.CanvasPosition.Y >= SpyLogFrame.CanvasSize.Y.Offset - SpyLogFrame.AbsoluteSize.Y - 50 then
+        SpyLogFrame.CanvasPosition = Vector2.new(0, SpyLogFrame.CanvasSize.Y.Offset)
+    end
+end
+
+-- Hook FireServer
+local success, err = pcall(function()
+    local oldNamecall
+    oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+        local method = getnamecallmethod()
+        local args = {...}
+
+        if method == "FireServer" and self.ClassName == "RemoteEvent" then
+            task.spawn(function() LogRemote(self.Name, args) end)
+        end
+
+        return oldNamecall(self, ...)
+    end)
+end)
+
 -- Initialize Tabs
 local Home = CreateTab("Главная", "🏠")
-local Settings = CreateTab("Настройки", "⚙️")
+local Visuals = CreateTab("Визуалы", "👁️")
+local RemoteSpy = CreateTab("Remote Spy", "📡")
 local Credits = CreateTab("Инфо", "🛡️")
 
--- Fill Tabs
-AddLabel(Home, "Добро пожаловать", Color3.fromRGB(0, 255, 255))
+-- Fill Home
+AddLabel(Home, "Основные функции", Color3.fromRGB(0, 255, 255))
 local flyBtnUI
-flyBtnUI = AddButton(Home, "Включить Полет: ВЫКЛ", function()
+flyBtnUI = AddButton(Home, "Полет: ВЫКЛ", function()
     ToggleFly()
-    flyBtnUI.Text = State.Flying and "Включить Полет: ВКЛ" or "Включить Полет: ВЫКЛ"
+    flyBtnUI.Text = State.Flying and "Полет: ВКЛ" or "Полет: ВЫКЛ"
     flyBtnUI.TextColor3 = State.Flying and Color3.fromRGB(0, 255, 150) or Color3.new(1,1,1)
 end)
 
-AddLabel(Settings, "Визуальные Настройки")
-AddButton(Settings, "Сменить Тему (Скоро)")
-AddButton(Settings, "Настроить Скорость (Скоро)")
+-- Fill Visuals
+AddLabel(Visuals, "ESP Функции", Color3.fromRGB(255, 255, 0))
+local espBtnUI
+espBtnUI = AddButton(Visuals, "Player ESP: ВЫКЛ", function()
+    State.EspEnabled = not State.EspEnabled
+    UpdateESP()
+    espBtnUI.Text = State.EspEnabled and "Player ESP: ВКЛ" or "Player ESP: ВЫКЛ"
+    espBtnUI.TextColor3 = State.EspEnabled and Color3.fromRGB(0, 255, 150) or Color3.new(1,1,1)
+end)
 
-AddLabel(Credits, "Neon Glass UI v6.1")
+-- Fill Remote Spy
+AddLabel(RemoteSpy, "RemoteEvent Monitor", Color3.fromRGB(255, 0, 255))
+local spyBtnUI
+spyBtnUI = AddButton(RemoteSpy, "Remote Spy: ВЫКЛ", function()
+    State.RemoteSpyEnabled = not State.RemoteSpyEnabled
+    spyBtnUI.Text = State.RemoteSpyEnabled and "Remote Spy: ВКЛ" or "Remote Spy: ВЫКЛ"
+    spyBtnUI.TextColor3 = State.RemoteSpyEnabled and Color3.fromRGB(0, 255, 150) or Color3.new(1,1,1)
+end)
+
+SpyLogFrame.Size = UDim2.new(1, 0, 1, -85)
+SpyLogFrame.BackgroundTransparency = 0.9
+SpyLogFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+SpyLogFrame.BorderSizePixel = 0
+SpyLogFrame.ScrollBarThickness = 2
+SpyLogFrame.Parent = RemoteSpy
+
+AddButton(RemoteSpy, "Очистить Лог", function()
+    for _, child in pairs(SpyLogFrame:GetChildren()) do
+        if child:IsA("TextLabel") then child:Destroy() end
+    end
+    SpyLogFrame.CanvasSize = UDim2.new(0,0,0,0)
+end)
+
+-- Fill Credits
+AddLabel(Credits, "Neon Glass Elite v7.0")
 AddLabel(Credits, "Автор: vchilina27")
-AddLabel(Credits, "Функция Полета: Добавлена")
+AddLabel(Credits, "Функции: Fly, ESP, Remote Spy")
 
 -- Draggable Logic
 local dragStart, startPos, dragging
@@ -328,4 +436,4 @@ Tabs["Главная"].Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 Tabs["Главная"].Group.Visible = true
 CurrentTabName = "Главная"
 
-print("Neon Glass UI v6.1 (with Fly) Loaded.")
+print("Neon Glass Elite v7.0 Loaded.")
