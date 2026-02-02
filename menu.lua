@@ -1,8 +1,8 @@
 --[[
-    ✨ ULTIMATE STYLISH UI V6 - "NEON GLASS" (NO FUNCTIONS)
+    ✨ ULTIMATE STYLISH UI V6.1 - "NEON GLASS" (WITH FLY)
     Language: Luau (Roblox Optimized)
     Design: Glassmorphism, Neon Accents, Ultra-Smooth Transitions
-    Features: Strictly Visual UI Menu (Без Функций)
+    Features: Stylish UI + Flight Function (Mobile Support)
 ]]
 
 -- Services (Luau-style)
@@ -10,6 +10,7 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
 
 local lp = Players.LocalPlayer
 
@@ -29,6 +30,14 @@ if not targetParent then return end
 
 -- Cleanup previous
 if targetParent:FindFirstChild("NeonGlassUI") then targetParent.NeonGlassUI:Destroy() end
+if targetParent:FindFirstChild("FlyControlsUI") then targetParent.FlyControlsUI:Destroy() end
+
+-- Global State
+local State = {
+    Flying = false,
+    FlySpeed = 50,
+    CurrentTab = nil
+}
 
 -- UI Construction
 local ScreenGui = Instance.new("ScreenGui")
@@ -99,7 +108,7 @@ end
 
 -- Tab Management
 local Tabs = {}
-local CurrentTab = nil
+local CurrentTabName = nil
 
 local function CreateTab(name: string, icon: string)
     local Btn = Instance.new("TextButton")
@@ -126,17 +135,17 @@ local function CreateTab(name: string, icon: string)
     ContentLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
     Btn.MouseButton1Click:Connect(function()
-        if CurrentTab == name then return end
+        if CurrentTabName == name then return end
 
         -- Reset previous
-        if CurrentTab and Tabs[CurrentTab] then
-            local t = Tabs[CurrentTab]
+        if CurrentTabName and Tabs[CurrentTabName] then
+            local t = Tabs[CurrentTabName]
             Tween(t.Btn, 0.3, {BackgroundTransparency = 1, TextColor3 = Color3.fromRGB(180, 180, 180)})
             t.Group.Visible = false
         end
 
         -- Activate new
-        CurrentTab = name
+        CurrentTabName = name
         Tween(Btn, 0.3, {BackgroundTransparency = 0.7, TextColor3 = Color3.fromRGB(255, 255, 255)})
         Group.Visible = true
         Group.GroupTransparency = 1
@@ -157,9 +166,10 @@ local function AddLabel(parent, text, color)
     l.TextColor3 = color or Color3.new(1,1,1)
     l.TextSize = 15
     l.Parent = parent
+    return l
 end
 
-local function AddButton(parent, text)
+local function AddButton(parent, text, callback)
     local b = Instance.new("TextButton")
     b.Size = UDim2.new(0.95, 0, 0, 42)
     b.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
@@ -181,6 +191,90 @@ local function AddButton(parent, text)
     b.MouseLeave:Connect(function()
         Tween(b, 0.2, {BackgroundColor3 = Color3.fromRGB(40, 40, 50), BackgroundTransparency = 0.5})
     end)
+
+    if callback then
+        b.MouseButton1Click:Connect(callback)
+    end
+    return b
+end
+
+-- FLY LOGIC
+local FlyControls = Instance.new("ScreenGui")
+FlyControls.Name = "FlyControlsUI"
+FlyControls.Enabled = false
+FlyControls.Parent = targetParent
+
+local function CreateFlyBtn(name, text, pos)
+    local b = Instance.new("TextButton")
+    b.Name = name
+    b.Size = UDim2.new(0, 60, 0, 60)
+    b.Position = pos
+    b.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+    b.BackgroundTransparency = 0.4
+    b.Text = text
+    b.TextColor3 = Color3.new(1,1,1)
+    b.TextSize = 30
+    b.Parent = FlyControls
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 30)
+    local s = Instance.new("UIStroke", b)
+    s.Color = Color3.fromRGB(0, 180, 255)
+    s.Thickness = 2
+    return b
+end
+
+local upBtn = CreateFlyBtn("Up", "↑", UDim2.new(1, -140, 0.5, -70))
+local downBtn = CreateFlyBtn("Down", "↓", UDim2.new(1, -140, 0.5, 10))
+
+local flyDir = {up = false, down = false}
+upBtn.MouseButton1Down:Connect(function() flyDir.up = true end)
+upBtn.MouseButton1Up:Connect(function() flyDir.up = false end)
+downBtn.MouseButton1Down:Connect(function() flyDir.down = true end)
+downBtn.MouseButton1Up:Connect(function() flyDir.down = false end)
+
+local bv, bg
+local function ToggleFly()
+    State.Flying = not State.Flying
+    FlyControls.Enabled = State.Flying
+
+    local char = lp.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    if State.Flying then
+        bv = Instance.new("BodyVelocity", hrp)
+        bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        bv.Velocity = Vector3.zero
+
+        bg = Instance.new("BodyGyro", hrp)
+        bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+        bg.P = 10000
+        bg.CFrame = hrp.CFrame
+
+        char.Humanoid.PlatformStand = true
+
+        task.spawn(function()
+            while State.Flying and char.Parent and char.Humanoid.Health > 0 do
+                local cam = workspace.CurrentCamera
+                local vel = char.Humanoid.MoveDirection * State.FlySpeed
+                if flyDir.up then vel = vel + Vector3.new(0, State.FlySpeed, 0) end
+                if flyDir.down then vel = vel + Vector3.new(0, -State.FlySpeed, 0) end
+
+                bv.Velocity = vel
+                bg.CFrame = cam.CFrame
+                task.wait()
+            end
+            State.Flying = false
+            FlyControls.Enabled = false
+            if bv then bv:Destroy() end
+            if bg then bg:Destroy() end
+            if char.Humanoid then char.Humanoid.PlatformStand = false end
+        end)
+    else
+        if bv then bv:Destroy() end
+        if bg then bg:Destroy() end
+        char.Humanoid.PlatformStand = false
+    end
 end
 
 -- Initialize Tabs
@@ -188,18 +282,22 @@ local Home = CreateTab("Главная", "🏠")
 local Settings = CreateTab("Настройки", "⚙️")
 local Credits = CreateTab("Инфо", "🛡️")
 
--- Fill Tabs (No functions, just style)
+-- Fill Tabs
 AddLabel(Home, "Добро пожаловать", Color3.fromRGB(0, 255, 255))
-AddButton(Home, "Красивая Кнопка 1")
-AddButton(Home, "Красивая Кнопка 2")
+local flyBtnUI
+flyBtnUI = AddButton(Home, "Включить Полет: ВЫКЛ", function()
+    ToggleFly()
+    flyBtnUI.Text = State.Flying and "Включить Полет: ВКЛ" or "Включить Полет: ВЫКЛ"
+    flyBtnUI.TextColor3 = State.Flying and Color3.fromRGB(0, 255, 150) or Color3.new(1,1,1)
+end)
 
 AddLabel(Settings, "Визуальные Настройки")
-AddButton(Settings, "Сменить Тему")
-AddButton(Settings, "Прозрачность")
+AddButton(Settings, "Сменить Тему (Скоро)")
+AddButton(Settings, "Настроить Скорость (Скоро)")
 
-AddLabel(Credits, "Neon Glass UI")
+AddLabel(Credits, "Neon Glass UI v6.1")
 AddLabel(Credits, "Автор: vchilina27")
-AddLabel(Credits, "Версия: 6.0 Luau")
+AddLabel(Credits, "Функция Полета: Добавлена")
 
 -- Draggable Logic
 local dragStart, startPos, dragging
@@ -228,6 +326,6 @@ end)
 Tabs["Главная"].Btn.BackgroundTransparency = 0.7
 Tabs["Главная"].Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 Tabs["Главная"].Group.Visible = true
-CurrentTab = "Главная"
+CurrentTabName = "Главная"
 
-print("Neon Glass UI (Luau) Loaded Successfully.")
+print("Neon Glass UI v6.1 (with Fly) Loaded.")
