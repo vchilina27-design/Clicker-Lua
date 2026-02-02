@@ -1,8 +1,51 @@
 --[[
-    STYLISH LUAU MENU
+    STYLISH LUAU MENU (ROBUST VERSION)
     Design: Modern Dark with Neon Accents
     Functionality: UI Layout Only (No script logic)
 ]]
+
+-- Utility to get the best parent for the GUI
+local function GetGuiParent()
+    -- Try CoreGui (for executors)
+    local success, coreGui = pcall(function() return game:GetService("CoreGui") end)
+    if success and coreGui then
+        -- Test if we can actually parent to it
+        local test = Instance.new("Frame")
+        local canParent, _ = pcall(function() test.Parent = coreGui end)
+        if canParent then
+            test:Destroy()
+            return coreGui
+        end
+    end
+
+    -- Fallback to PlayerGui (for Roblox Studio / standard scripts)
+    local Players = game:GetService("Players")
+    local lp = Players.LocalPlayer
+    if not lp then
+        -- Wait for LocalPlayer if it's not yet available
+        local start = tick()
+        while not Players.LocalPlayer and tick() - start < 5 do
+            task.wait()
+        end
+        lp = Players.LocalPlayer
+    end
+
+    if lp then
+        return lp:WaitForChild("PlayerGui", 10)
+    end
+
+    return nil
+end
+
+local targetParent = GetGuiParent()
+if not targetParent then
+    warn("StylishMenu: Could not find a suitable parent for the UI!")
+    return
+end
+
+-- Cleanup existing UI if it exists
+local existing = targetParent:FindFirstChild("StylishMenuUI")
+if existing then existing:Destroy() end
 
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
@@ -15,20 +58,11 @@ local ButtonContainer = Instance.new("ScrollingFrame")
 local UIListLayout = Instance.new("UIListLayout")
 local UIPadding = Instance.new("UIPadding")
 
--- Parent the GUI to CoreGui or PlayerGui
-local success, parent = pcall(function()
-    return game:GetService("CoreGui")
-end)
-
-if not success or not parent then
-    parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
-end
-
 -- ScreenGui Properties
 ScreenGui.Name = "StylishMenuUI"
-ScreenGui.Parent = parent
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = targetParent
 
 -- Main Frame
 MainFrame.Name = "MainFrame"
@@ -41,10 +75,10 @@ MainFrame.Size = UDim2.new(0, 320, 0, 400)
 UICorner.CornerRadius = UDim.new(0, 14)
 UICorner.Parent = MainFrame
 
-UIGradient.Color = ColorSequence.new{
+UIGradient.Color = ColorSequence.new({
     ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 40, 45)),
     ColorSequenceKeypoint.new(1, Color3.fromRGB(15, 15, 20))
-}
+})
 UIGradient.Rotation = 45
 UIGradient.Parent = MainFrame
 
@@ -74,11 +108,11 @@ DecorationLine.Position = UDim2.new(0, 20, 0, 50)
 DecorationLine.Size = UDim2.new(1, -40, 0, 2)
 
 local LineGradient = Instance.new("UIGradient")
-LineGradient.Color = ColorSequence.new{
+LineGradient.Color = ColorSequence.new({
     ColorSequenceKeypoint.new(0, Color3.fromRGB(180, 0, 255)),
     ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 150, 255)),
     ColorSequenceKeypoint.new(1, Color3.fromRGB(180, 0, 255))
-}
+})
 LineGradient.Parent = DecorationLine
 
 -- Scrolling Container for Buttons
@@ -124,9 +158,6 @@ local function AddMenuButton(name, label)
     btnStroke.Thickness = 1
     btnStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     btnStroke.Parent = btn
-
-    -- Optional: Hover effect style could be added here,
-    -- but user requested "No Functions", so we keep it static.
 end
 
 -- Create placeholders
