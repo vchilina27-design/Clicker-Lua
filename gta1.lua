@@ -190,6 +190,11 @@ local function createCar(position, isPolice)
     return model
 end
 
+ codex/-gta-1-fs3egr
+local setWanted
+
+
+ main
 local function spawnPickup(position)
     local pickup = makePart({
         Name = "MoneyPickup",
@@ -199,7 +204,15 @@ local function spawnPickup(position)
         Material = Enum.Material.Neon,
     })
 
+ codex/-gta-1-fs3egr
+    local claimed = false
+
     pickup.Touched:Connect(function(hit)
+        if claimed then return end
+
+
+    pickup.Touched:Connect(function(hit)
+ main
         local character = hit.Parent
         if not character then return end
 
@@ -209,8 +222,14 @@ local function spawnPickup(position)
         local state = playerState[player]
         if not state then return end
 
+ codex/-gta-1-fs3egr
+        claimed = true
+        state.money += 100
+        setWanted(player, state.wanted + 1)
+
         state.money += 100
         updateUiRemote:FireClient(player, state.money, state.wanted)
+ main
 
         pickup:Destroy()
         task.delay(math.random(4, 10), function()
@@ -221,7 +240,11 @@ local function spawnPickup(position)
     end)
 end
 
+ codex/-gta-1-fs3egr
+setWanted = function(player, value)
+
 local function setWanted(player, value)
+ main
     local state = playerState[player]
     if not state then return end
 
@@ -332,6 +355,11 @@ local function initGameplay()
             for player, state in pairs(playerState) do
                 if math.random() < 0.55 then
                     setWanted(player, math.max(0, state.wanted - 1))
+ codex/-gta-1-fs3egr
+                elseif math.random() < 0.2 then
+                    setWanted(player, state.wanted + 1)
+
+ main
                 end
             end
         end
